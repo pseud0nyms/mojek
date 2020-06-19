@@ -31,3 +31,4 @@ function validateCustomer(customer) {
 }
 
 exports.Customer = Customer;
+exports.validate = validateCustomer;
