@@ -1,8 +1,12 @@
 const { Rental, validate }  = require('../models/rental');
 const { Movie }             = require('../models/movie');
 const { Customer }          = require('../models/costumer');
+const mongoose              = require('mongoose');
+const Fawn                  = require('fawn');
 const express               = require('express');
 const router                = express.Router();
+
+Fawn.init(mongoose);
 
 router.get('/', async (req, res) => {
     const rentals = await Rental.find().sort('-dateOut');
@@ -34,12 +38,27 @@ router.post('/', async (req, res) => {
             dailyRentalRate: movie.dailyRentalRate
         }
     });
-    rental = await rental.save();
+    // Bisa saja crash, ketika save rental & movie
+    // oleh karena itu perintah dibawa diganti
+    // dengan Fawn (transaction)
+    // rental = await rental.save();
+    // movie.numberInStock--;
+    // movie.save();
+    // res.send(rental);
 
-    movie.numberInStock--;
-    movie.save();
-
-    res.send(rental);
+    try{
+        new Fawn.Task()
+            .save('rentals', rental)
+            .update('movie', { _id: movie._id }, {
+                $inc: { numberInStock: -1 }
+            })
+            .run();
+        
+        res.send(rental);
+    }
+    catch(ex) {
+        res.status(500).status('Something failed.');
+    }
 });
 
 router.get('/:id', async (req, res) => {
